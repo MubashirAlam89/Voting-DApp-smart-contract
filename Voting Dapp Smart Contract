@@ -1,0 +1,391 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+interface IERC20 {
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    function totalSupply() external view returns (uint256);
+
+    function balanceOf(address account) external view returns (uint256);
+
+    function transfer(address to, uint256 amount) external returns (bool);
+
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
+}
+pragma solidity ^0.8.0;
+
+
+interface IERC20Metadata is IERC20 {
+    function name() external view returns (string memory);
+
+    function symbol() external view returns (string memory);
+
+    function decimals() external view returns (uint8);
+}
+
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+contract VotingERC20 is Context, IERC20, IERC20Metadata {
+    mapping(address => uint256) private _balances;
+
+    mapping(address => mapping(address => uint256)) private _allowances;
+
+    uint256 private _totalSupply;
+
+    string private _name;
+    string private _symbol;
+
+    address owner;
+
+// candidates parties varaiable
+// *
+    uint public PTI;
+    uint public PMLN;
+    uint public PPP;
+    uint public MQM;
+// *
+
+
+    uint internal idGenerate;
+
+// registeration status variable
+// *
+    bool registerationStart;
+    uint registerationEnd;
+// *
+
+
+    string  winnerParty;
+    uint public winnerPartyCode;
+    bool internal vottingClose;
+
+// voter variable
+// *
+    struct voter{
+        uint voterId;
+        string name;
+        bool isRegister;
+        bool isVoted;
+        string vote;
+        uint partyCode;
+    }
+// *
+
+
+// mapping for store voters data
+// *
+    mapping (address=>voter)voters;
+// *
+    constructor(string memory name_, string memory symbol_) {
+        _name = name_;
+        _symbol = symbol_;
+        _totalSupply=1000;
+        _balances[msg.sender]=_totalSupply;
+        owner=msg.sender;
+    }
+
+
+
+
+// modifier's
+// *
+    modifier isRegisterationClosed(){
+        require(block.timestamp>=registerationEnd,"can't vote before registration close");
+        _;
+    }
+
+    modifier cantVoteAgain(){
+        require(voters[msg.sender].isVoted != true,"can't vote again");
+        _;
+    }
+    modifier isRegistered(){
+        require(voters[msg.sender].isRegister==true,"you are not registered");
+        _;
+    }
+    modifier isVotingClosed(){
+        require(vottingClose!=true,"Voting Closed!");
+        _;
+    }
+
+    modifier onlyOwner(){
+        require(msg.sender==owner,"owner required");
+        _;
+    }
+
+    modifier notOwner(){
+        require(msg.sender!=owner,"owner not allowed");
+        _;
+    }
+// *
+
+
+// function for start registeration which can be called by only owner
+// *
+    function startRegisteration() public onlyOwner{
+        registerationStart=true;
+        registerationEnd=block.timestamp + 1 minutes;
+    }
+// *
+
+
+// function for registeration of voter before voting
+// *
+    function registerVoter(string memory name_) public notOwner{
+        require(registerationStart==true,"registeration will be start's soon");
+        require(voters[msg.sender].isRegister != true,"you are already registered");
+        require(block.timestamp<=registerationEnd,"regiteration closed!");
+        idGenerate+=1;
+        voters[msg.sender].name=name_;
+        voters[msg.sender].voterId=idGenerate;
+        voters[msg.sender].isRegister=true;
+    }
+// *
+
+    function checkVoterStatus()public view returns(voter memory){
+        return voters[msg.sender];
+
+    }
+
+
+
+// function for doing vote to specific party
+// *
+    function voteForPTI() public notOwner isRegistered isRegisterationClosed cantVoteAgain isVotingClosed{
+        PTI+=1;
+        voters[msg.sender].isVoted=true;
+        voters[msg.sender].vote="PTI";
+        voters[msg.sender].partyCode=101;
+
+    }
+    function voteForPMLN() public notOwner isRegistered isRegisterationClosed cantVoteAgain isVotingClosed{
+        PMLN+=1;
+        voters[msg.sender].isVoted=true;
+        voters[msg.sender].vote="PMLN";
+        voters[msg.sender].partyCode=102;
+
+    }
+    function voteForPPP() public notOwner isRegistered isRegisterationClosed cantVoteAgain isVotingClosed{
+        PPP+=1;
+        voters[msg.sender].isVoted=true;
+        voters[msg.sender].vote="MQM";
+        voters[msg.sender].partyCode=103;
+
+    }
+    function voteForMQM() public notOwner isRegistered isRegisterationClosed cantVoteAgain isVotingClosed{
+        MQM+=1;
+        voters[msg.sender].isVoted=true;
+        voters[msg.sender].vote="PPP";
+        voters[msg.sender].partyCode=104;
+
+    }
+// *
+
+
+// function for close the voting
+// *
+    function votingEnd() public onlyOwner{
+        vottingClose=true;
+    }
+// *
+
+
+// function for check winner
+// *
+function WinnerParty()public view returns(string memory){
+    return winnerParty;
+}
+// *
+
+// function for select winner which can be called by only owner
+// *
+function selectWinner()public onlyOwner {
+    require(vottingClose==true,"voting in progress");
+// require(winnerPartyCode == 0,"");
+// require(winnerPartyCode > 0,"not ag");
+    if(PTI > MQM && PTI > PPP && PTI >PMLN){
+winnerParty="PTI";
+winnerPartyCode=101;
+    }
+    else if(PMLN > PTI && PMLN > PPP && PMLN > MQM){
+winnerParty="PMLN";
+winnerPartyCode=102;
+    }
+   else if (MQM > PTI && MQM > PPP && MQM >PMLN){
+winnerParty="MQM";
+winnerPartyCode=103;
+    }
+    else if(PPP > PTI && PPP > MQM && PPP > PMLN){
+winnerParty="PPP";
+winnerPartyCode=104;
+    }
+}
+// *
+ 
+
+
+
+    function name() public view virtual override returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view virtual override returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return 18;
+    }
+
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply;
+    }
+
+    function balanceOf(address account) public view virtual override returns (uint256) {
+        return _balances[account];
+    }
+
+    function transfer(address to, uint256 amount) public virtual override returns (bool) {
+        address owner_ = _msgSender();
+        _transfer(owner_, to, amount);
+        return true;
+    }
+
+    function allowance(address owner_, address spender) public view virtual override returns (uint256) {
+        return _allowances[owner_][spender];
+    }
+
+    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+        address owner_ = _msgSender();
+        _approve(owner_, spender, amount);
+        return true;
+    }
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public virtual override returns (bool) {
+        address spender = _msgSender();
+        _spendAllowance(from, spender, amount);
+        _transfer(from, to, amount);
+        return true;
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        _beforeTokenTransfer(from, to, amount);
+
+        uint256 fromBalance = _balances[from];
+        require(fromBalance >= amount, "ERC20: transfer amount exceeds balance");
+        unchecked {
+            _balances[from] = fromBalance - amount;
+            _balances[to] += amount;
+        }
+
+        emit Transfer(from, to, amount);
+
+        _afterTokenTransfer(from, to, amount);
+    }
+    
+    function mint(address account,uint amount)public{
+        require(msg.sender==owner || voters[msg.sender].partyCode==winnerPartyCode,"");
+        _mint(account,amount);
+    }
+
+    function _mint(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: mint to the zero address");
+
+        _beforeTokenTransfer(address(0), account, amount);
+
+        _totalSupply += amount;
+        unchecked {
+            // Overflow not possible: balance + amount is at most totalSupply + amount, which is checked above.
+            _balances[account] += amount;
+        }
+        emit Transfer(address(0), account, amount);
+
+        _afterTokenTransfer(address(0), account, amount);
+    }
+
+    function _burn(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: burn from the zero address");
+
+        _beforeTokenTransfer(account, address(0), amount);
+
+        uint256 accountBalance = _balances[account];
+        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+        unchecked {
+            _balances[account] = accountBalance - amount;
+            // Overflow not possible: amount <= accountBalance <= totalSupply.
+            _totalSupply -= amount;
+        }
+
+        emit Transfer(account, address(0), amount);
+
+        _afterTokenTransfer(account, address(0), amount);
+    }
+
+    function _approve(
+        address owner_,
+        address spender,
+        uint256 amount
+    ) internal virtual {
+        require(owner_ != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner_][spender] = amount;
+        emit Approval(owner_, spender, amount);
+    }
+
+
+    function _spendAllowance(
+        address owner_,
+        address spender,
+        uint256 amount
+    ) internal virtual {
+        uint256 currentAllowance = allowance(owner_, spender);
+        if (currentAllowance != type(uint256).max) {
+            require(currentAllowance >= amount, "ERC20: insufficient allowance");
+            unchecked {
+                _approve(owner, spender, currentAllowance - amount);
+            }
+        }
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual {}
+
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual {}
+}
